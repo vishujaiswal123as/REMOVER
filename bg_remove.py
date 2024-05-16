@@ -4,6 +4,9 @@ from PIL import Image
 from io import BytesIO
 import base64
 
+
+
+
 st.set_page_config(layout="wide", page_title="Image Background Remover")
 
 st.write("## Remove background from your image")
@@ -43,4 +46,4 @@ if my_upload is not None:
     else:
         fix_image(upload=my_upload)
 else:
-    fix_image("./zebra.jpg")
+    fix_image("D:\web_scraping\webdriver\BackgroundRemoval-main\BackgroundRemoval-main\zebra.jpg")
