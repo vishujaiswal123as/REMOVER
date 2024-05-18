@@ -1,49 +1,110 @@
 import streamlit as st
+from groq import Groq
+
+from langchain.chains import ConversationChain
+from langchain.chains.conversation.memory import ConversationBufferWindowMemory
+from langchain_groq import ChatGroq
+from langchain.prompts import PromptTemplate
+from dotenv import load_dotenv
+import os 
 from rembg import remove
 from PIL import Image
-from io import BytesIO
-import base64
+#keyboard=keyboard.Controller()
+# req
+# # streamlit
+# # langchain
+# # langchain-groq
+# # python-dotenv
 
 
+load_dotenv()
+
+groq_api_key = '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'
 
 
-st.set_page_config(layout="wide", page_title="Image Background Remover")
+def remove_background():
+    st.header('Upload Your image for removing background')
+    def remove_background_with_rembg(image_path, output_path):
+        # Load the image
+        input_image = Image.open(image_path)
+    
+        # Remove the background
+        output_image = remove(input_image)
+    
+        # Save the output image
+        output_image.save(output_path)
+        st.write('Feel free to ask me anything...')
+        return output_path
+    
+    
+    # Usage
+    user_image = st.file_uploader('Upload Image here', type=['png', 'jpg', 'jpeg'])
+    if user_image:
+        output_path = remove_background_with_rembg(user_image, "output.png")
+    
+        if os.path.exists(output_path):
+            st.write("Background removed successfully!")
+            with open(output_path, "rb") as file:
+                st.download_button(label="Download image", data=file,
+                                   file_name="my.png", mime="image/png")
+        else:
+            st.write("Error: The output image does not exist.")
+            
+   
+def main():
 
-st.write("## Remove background from your image")
-st.write(
-    ":dog: Try uploading an image to watch the background magically removed. Full quality images can be downloaded from the sidebar. This code is open source and available [here](https://github.com/tyler-simons/BackgroundRemoval) on GitHub. Special thanks to the [rembg library](https://github.com/danielgatis/rembg) :grin:"
-)
-st.sidebar.write("## Upload and download :gear:")
+    st.title("Rock Chat App")
 
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+    # Add customization options to the sidebar
 
-# Download the fixed image
-def convert_image(img):
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    byte_im = buf.getvalue()
-    return byte_im
+    conversational_memory_length = st.sidebar.slider('Conversational memory length:', 1, 10, value = 5)
 
+    memory=ConversationBufferWindowMemory(k=conversational_memory_length)
 
-def fix_image(upload):
-    image = Image.open(upload)
-    col1.write("Original Image :camera:")
-    col1.image(image)
-
-    fixed = remove(image)
-    col2.write("Fixed Image :wrench:")
-    col2.image(fixed)
-    st.sidebar.markdown("\n")
-    st.sidebar.download_button("Download fixed image", convert_image(fixed), "fixed.png", "image/png")
-
-
-col1, col2 = st.columns(2)
-my_upload = st.sidebar.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-
-if my_upload is not None:
-    if my_upload.size > MAX_FILE_SIZE:
-        st.error("The uploaded file is too large. Please upload an image smaller than 5MB.")
+    user_question = st.text_area("Ask a question:")
+    
+    if user_question =='what is my name' or user_question =="what's my name":
+        st.write('Your name is vishal')
+        user_question=''
+    elif user_question=='who made you' or user_question=='who makes you' or user_question=="who make's you":
+        st.write('i made by vishal')
+        user_question=''
+    elif 'remove background' in user_question or 'background remove'in user_question :
+        remove_background()
+        user_question=''
+    # session state variable
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history=[]
     else:
-        fix_image(upload=my_upload)
-else:
-    fix_image("D:\web_scraping\webdriver\BackgroundRemoval-main\BackgroundRemoval-main\zebra.jpg")
+        for message in st.session_state.chat_history:
+            memory.save_context({'input':message['human']},{'output':message['AI']})
+
+
+    # Initialize Groq Langchain chat object and conversation
+    groq_chat = ChatGroq(
+            groq_api_key=groq_api_key, 
+            model_name=model
+    )
+
+    conversation = ConversationChain(
+            llm=groq_chat,
+            memory=memory
+    )
+
+    if user_question:
+        response = conversation(user_question)
+        message = {'human':user_question,'AI':response['response']}
+        st.session_state.chat_history.append(message)
+        st.write("Chatbot:", response['response'])
+
+
+
+# st.sidebar.title('Select an LLM')
+model = st.sidebar.selectbox(
+    'Choose a model',
+    ['mixtral-8x7b-32768','Remove Background']
+)
+if model=='mixtral-8x7b-32768':
+    main()
+elif model=='Remove Background':
+    remove_background()
